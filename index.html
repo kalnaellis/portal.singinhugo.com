@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Singing HUGO Portal</title>
+  <meta name="description" content="Singing Hugo collaboration portal: record voice, capture handwritten text, generate prompts."/>
+  <style>
+    :root{
+      --bg:#0b0d12;
+      --fg:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.62);
+      --glass:rgba(16,18,26,.56);
+      --glass2:rgba(16,18,26,.74);
+      --stroke:rgba(255,255,255,.12);
+      --stroke2:rgba(255,255,255,.22);
+      --shadow:0 30px 90px rgba(0,0,0,.55);
+      --r:22px;
+      --r2:16px;
+      --vh:1vh;
+      color-scheme: dark;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--fg); overflow:hidden}
+
+    #bg{position:fixed; inset:0; width:100%; height:100%; z-index:0; display:block}
+    .fx{position:fixed; inset:0; z-index:1; pointer-events:none;
+      background: radial-gradient(1200px 700px at 50% 30%, rgba(0,0,0,0) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.72) 100%);
+      opacity:.96;
+    }
+
+    header{
+      position:fixed;
+      top:max(14px, env(safe-area-inset-top));
+      left:max(14px, env(safe-area-inset-left));
+      right:max(14px, env(safe-area-inset-right));
+      z-index:3;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      pointer-events:none;
+    }
+    .brand{
+      pointer-events:auto;
+      display:flex; gap:10px; align-items:center;
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid var(--stroke);
+      background:rgba(10,12,18,.35);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.28);
+      user-select:none;
+    }
+    .dot{width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,.75); box-shadow:0 0 0 4px rgba(255,255,255,.10)}
+    .brand b{font-weight:760; letter-spacing:.2px}
+    .brand span{display:block; color:var(--muted); font-size:12px; margin-top:2px}
+
+    .pill{
+      pointer-events:auto;
+      border:1px solid var(--stroke);
+      background:rgba(10,12,18,.35);
+      color:var(--fg);
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:13px;
+      text-decoration:none;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.22);
+      user-select:none;
+      display:inline-flex; gap:8px; align-items:center;
+    }
+    .pill:hover{border-color:var(--stroke2)}
+    .k{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:11px;
+      padding:2px 6px;
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:8px;
+      opacity:.9;
+    }
+
+    main{
+      position:relative; z-index:2;
+      height:calc(var(--vh)*100);
+      display:grid; place-items:center;
+      padding:max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      overflow:auto;
+    }
+
+    .wrap{width:min(1100px, 96vw);}
+
+    .card{
+      border-radius:var(--r);
+      background: linear-gradient(180deg, var(--glass), rgba(16,18,26,.30));
+      border:1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      overflow:hidden;
+    }
+    .top{
+      padding:22px 22px 14px;
+      display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0));
+    }
+    h1{margin:0; font-size: clamp(20px, 3vw, 32px); font-weight:800; line-height:1.1}
+    .sub{margin-top:8px; color:var(--muted); font-size:14px; line-height:1.35; max-width:68ch}
+    .body{padding:18px 22px 22px}
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .tile{
+      border-radius: var(--r2);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(8,10,14,.40);
+      padding: 14px 14px;
+      min-height: 98px;
+      cursor:pointer;
+      transition: transform .14s ease, border-color .18s ease, background .18s ease;
+      user-select:none;
+    }
+    .tile:hover{border-color:rgba(255,255,255,.22); background: rgba(8,10,14,.52); transform: translateY(-1px)}
+    .tile b{display:block; font-size:14px; letter-spacing:.2px}
+    .tile span{display:block; color:var(--muted); font-size:12px; margin-top:8px; line-height:1.25}
+
+    label{display:block; margin:10px 0 6px; color:var(--muted); font-size:12px; letter-spacing:.2px}
+    input, textarea, select{
+      width:100%;
+      font:inherit;
+      color:var(--fg);
+      background: rgba(8,10,14,.48);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      padding:12px 12px;
+      outline:none;
+      transition: border-color .18s ease, transform .18s ease, background .18s ease;
+    }
+    textarea{min-height:120px; resize:vertical}
+    input:focus, textarea:focus, select:focus{border-color:rgba(255,255,255,.28); background:rgba(8,10,14,.60); transform: translateY(-1px)}
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.10);
+      color:var(--fg);
+      border-radius:14px;
+      padding:12px 14px;
+      font-weight:750;
+      cursor:pointer;
+      transition: transform .14s ease, border-color .18s ease, background .18s ease;
+      user-select:none;
+    }
+    button:hover{border-color:rgba(255,255,255,.26); background: rgba(255,255,255,.14)}
+    button:active{transform: translateY(1px) scale(.99)}
+    button[disabled]{opacity:.55; cursor:not-allowed}
+
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .muted{color:var(--muted); font-size:12px; line-height:1.35}
+    .hr{height:1px; background:rgba(255,255,255,.08); margin:16px 0}
+
+    .panel{
+      display:none;
+      margin-top: 14px;
+      border-radius: var(--r);
+      border:1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(16,18,26,.72), rgba(16,18,26,.45));
+      padding: 16px;
+    }
+    .panel h2{margin:0; font-size:16px; letter-spacing:.2px}
+    .panel .desc{margin-top:8px; color:var(--muted); font-size:13px; line-height:1.35}
+    .closeRow{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap}
+    .badge{
+      display:inline-flex; gap:8px; align-items:center;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.08);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      color:rgba(255,255,255,.80);
+    }
+    .led{width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.45); box-shadow:0 0 0 4px rgba(255,255,255,.08)}
+    .led.ok{background: rgba(90,255,170,.80); box-shadow:0 0 0 4px rgba(90,255,170,.12)}
+    .led.bad{background: rgba(255,120,120,.85); box-shadow:0 0 0 4px rgba(255,120,120,.12)}
+
+    .video{
+      position:relative;
+      width:100%;
+      aspect-ratio:16/9;
+      border-radius: 16px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.35);
+      margin-top:10px;
+    }
+    iframe{position:absolute; inset:0; width:100%; height:100%; border:0}
+
+    .foot{
+      margin-top: 14px;
+      padding:12px 4px;
+      color: rgba(255,255,255,.55);
+      font-size: 12px;
+      display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+    }
+    .foot a{color: rgba(255,255,255,.75); text-decoration:none; border-bottom:1px solid rgba(255,255,255,.18)}
+    .foot a:hover{border-bottom-color:rgba(255,255,255,.35)}
+
+    @media (max-width: 980px){
+      .grid{grid-template-columns: repeat(2, 1fr)}
+    }
+    @media (max-width: 520px){
+      .grid{grid-template-columns: 1fr}
+    }
+    @media (prefers-reduced-motion: reduce){
+      #bg{display:none}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div class="fx" aria-hidden="true"></div>
+
+  <header>
+    <div class="brand">
+      <div class="dot" aria-hidden="true"></div>
+      <div>
+        <b>Singing HUGO Portal</b>
+        <span>collaboration & adventure</span>
+      </div>
+    </div>
+    <div class="row" style="pointer-events:auto">
+      <a class="pill" href="https://singinghugo.com"><span>Home</span></a>
+      <a class="pill" href="https://filma.singinghugo.com"><span>Film</span> <span class="k">code</span></a>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <section class="card" id="gateCard" role="region" aria-label="Access code gate">
+        <div class="top">
+          <div>
+            <h1>Register your access code</h1>
+            <div class="sub">
+              Reinis Kalnaellis is launching this portal for collaboration and adventure.
+              Enter your code to unlock tools for voice, text, prompts, and playful experiments.
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <form id="gateForm" autocomplete="off">
+            <label for="code">Access code</label>
+            <div class="row">
+              <div style="flex:1; min-width:240px">
+                <input id="code" name="code" placeholder="Your unique code" required/>
+                <input id="website" name="website" tabindex="-1" autocomplete="off" style="position:absolute; left:-9999px; opacity:0;" />
+              </div>
+              <button id="unlockBtn" type="submit" style="min-width:140px">Unlock</button>
+              <span class="badge" id="gateStatus"><span class="led" id="gateLed"></span><span id="gateText">Ready.</span></span>
+            </div>
+            <div class="muted" id="gateMsg" style="margin-top:10px">
+              Uses the same code set as the film access.
+            </div>
+          </form>
+
+          <div id="dash" style="display:none; margin-top:16px">
+            <div class="hr"></div>
+            <div class="grid" aria-label="Tools">
+              <div class="tile" data-open="scenes">
+                <b>My Scenes</b>
+                <span>Capture handwritten text → OCR → save prompt-ready text.</span>
+              </div>
+              <div class="tile" data-open="music">
+                <b>Music</b>
+                <span>Record your voice, download it, build tracks.</span>
+              </div>
+              <div class="tile" data-open="drawings">
+                <b>Drawings</b>
+                <span>Generate an art prompt in “Singing Hugo” style from text.</span>
+              </div>
+              <div class="tile" data-open="videos">
+                <b>Videos</b>
+                <span>My shorts, references, and dropzone for future upgrades.</span>
+              </div>
+            </div>
+
+            <div class="panel" id="panel-scenes">
+              <div class="closeRow">
+                <div>
+                  <h2>My Scenes</h2>
+                  <div class="desc">Take a photo of handwritten text or upload an image. OCR converts it to editable text. Then generate a style prompt.</div>
+                </div>
+                <button class="closeBtn" data-close>Close</button>
+              </div>
+
+              <label>1) Capture / upload handwritten text</label>
+              <div class="row">
+                <input id="imgInput" type="file" accept="image/*" capture="environment"/>
+                <button id="runOcrBtn" type="button">Run OCR</button>
+                <span class="badge"><span class="led" id="ocrLed"></span><span id="ocrText">Idle.</span></span>
+              </div>
+
+              <div class="row" style="align-items:flex-start; margin-top:10px">
+                <div style="flex:1; min-width:240px">
+                  <label>2) Extracted text (editable)</label>
+                  <textarea id="ocrOut" placeholder="OCR output will appear here…"></textarea>
+                </div>
+                <div style="flex:1; min-width:240px">
+                  <label>Preview</label>
+                  <div style="border:1px solid rgba(255,255,255,.10); border-radius:16px; overflow:hidden; background:rgba(0,0,0,.25); min-height:120px">
+                    <img id="imgPreview" alt="Preview" style="width:100%; height:auto; display:none"/>
+                    <div id="noPreview" class="muted" style="padding:12px">No image yet.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row" style="margin-top:10px">
+                <button id="saveSceneBtn" type="button">Save text</button>
+                <button id="downloadSceneBtn" type="button">Download .txt</button>
+                <span class="muted" id="saveHint">Saved locally in your browser.</span>
+              </div>
+
+              <div class="hr"></div>
+
+              <label>3) Generate an image prompt (Singing Hugo style)</label>
+              <div class="row">
+                <select id="stylePreset" style="flex:1; min-width:240px">
+                  <option value="sh_default">Singing Hugo: dreamy-glass + ink + soft grain</option>
+                  <option value="sh_pencil">Singing Hugo: pencil storyboard + film scan texture</option>
+                  <option value="sh_noir">Singing Hugo: noir neon + fog + minimal typography</option>
+                </select>
+                <button id="makePromptBtn" type="button">Make prompt</button>
+                <button id="copyPromptBtn" type="button">Copy</button>
+              </div>
+              <textarea id="promptOut" placeholder="Your generated prompt appears here…" style="margin-top:10px"></textarea>
+              <div class="muted" style="margin-top:8px">
+                This portal doesn’t generate images by itself (it’s a static site). It generates prompts you can paste into your preferred image tool.
+              </div>
+            </div>
+
+            <div class="panel" id="panel-music">
+              <div class="closeRow">
+                <div>
+                  <h2>Music</h2>
+                  <div class="desc">Record voice directly in the browser. Download the file and use it in your DAW or tool of choice.</div>
+                </div>
+                <button class="closeBtn" data-close>Close</button>
+              </div>
+
+              <label>Record your voice</label>
+              <div class="row">
+                <button id="recStart" type="button">Start recording</button>
+                <button id="recStop" type="button" disabled>Stop</button>
+                <span class="badge"><span class="led" id="recLed"></span><span id="recText">Idle.</span></span>
+              </div>
+
+              <div class="row" style="margin-top:10px">
+                <audio id="recAudio" controls style="width:100%; display:none"></audio>
+              </div>
+
+              <div class="row" style="margin-top:10px">
+                <button id="recDownload" type="button" disabled>Download recording</button>
+                <span class="muted">Format is usually .webm (browser dependent). Convert to WAV if needed.</span>
+              </div>
+            </div>
+
+            <div class="panel" id="panel-drawings">
+              <div class="closeRow">
+                <div>
+                  <h2>Drawings</h2>
+                  <div class="desc">Turn text into a consistent “Singing Hugo” artwork prompt. Save a library of prompts.</div>
+                </div>
+                <button class="closeBtn" data-close>Close</button>
+              </div>
+
+              <label>Text to stylize</label>
+              <textarea id="drawText" placeholder="Paste or type: story fragment, mood, character, environment…"></textarea>
+
+              <div class="row" style="margin-top:10px">
+                <select id="drawRatio" style="flex:1; min-width:200px">
+                  <option value="16:9">16:9 (cinematic)</option>
+                  <option value="9:16">9:16 (mobile)</option>
+                  <option value="1:1">1:1 (square)</option>
+                </select>
+                <select id="drawMood" style="flex:1; min-width:200px">
+                  <option value="tender">tender</option>
+                  <option value="mysterious">mysterious</option>
+                  <option value="funny">funny</option>
+                  <option value="melancholic">melancholic</option>
+                  <option value="epic">epic</option>
+                </select>
+                <button id="drawMake" type="button">Generate prompt</button>
+                <button id="drawSave" type="button">Save prompt</button>
+              </div>
+
+              <label style="margin-top:10px">Prompt output</label>
+              <textarea id="drawOut" placeholder="Generated prompt…" ></textarea>
+
+              <div class="hr"></div>
+
+              <div class="row" style="justify-content:space-between; align-items:flex-start">
+                <div style="flex:1; min-width:240px">
+                  <b style="font-size:13px">Saved prompts</b>
+                  <div class="muted" style="margin-top:6px">Stored locally in your browser.</div>
+                </div>
+                <div class="row">
+                  <button id="drawExport" type="button">Export .json</button>
+                  <button id="drawClear" type="button">Clear saved</button>
+                </div>
+              </div>
+              <div id="savedList" style="margin-top:10px; display:grid; gap:10px"></div>
+            </div>
+
+            <div class="panel" id="panel-videos">
+              <div class="closeRow">
+                <div>
+                  <h2>Videos</h2>
+                  <div class="desc">Placeholder for “My Shorts” and future portal drops. For now: a pinned trailer/reference.</div>
+                </div>
+                <button class="closeBtn" data-close>Close</button>
+              </div>
+
+              <label>Pinned video (optional)</label>
+              <div class="row">
+                <input id="videoId" placeholder="YouTube ID (optional)" />
+                <button id="setVideo" type="button">Set</button>
+              </div>
+              <div class="video" id="videoBox" style="display:none">
+                <iframe id="videoFrame" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+              </div>
+              <div class="muted" style="margin-top:10px">This section is intentionally simple so it doesn’t become a full-time job.</div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <div class="foot">
+        <div>© Singing Hugo Portal</div>
+        <div class="muted">Static site. Local saves stay on your device. Validation goes through your Apps Script.</div>
+      </div>
+    </div>
+  </main>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <script type="module">
+    // =============================
+    // CONFIG YOU MUST EDIT
+    // =============================
+    const VALIDATE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxHWxugSMTUekR1R5TUJJMEgcAIjCtw01EvHgZuHq5yW6VtHqN0Hj74ANLDkltWwc0iCg/exec";
+    const TOKEN = "rijafilms";
+
+    const $ = (s) => document.querySelector(s);
+    const gateForm = $("#gateForm");
+    const codeEl = $("#code");
+    const unlockBtn = $("#unlockBtn");
+    const gateLed = $("#gateLed");
+    const gateText = $("#gateText");
+    const gateMsg = $("#gateMsg");
+    const dash = $("#dash");
+    const honeypot = $("#website");
+
+    function setVH(){ document.documentElement.style.setProperty("--vh", (window.innerHeight * 0.01) + "px"); }
+    setVH(); window.addEventListener("resize", setVH);
+
+    function normalizeCode(s){ return (s||"").trim().toUpperCase().replace(/\s+/g,"").replace(/[^A-Z0-9\-]/g,""); }
+    function ledState(ok){
+      gateLed.classList.remove("ok","bad");
+      gateLed.classList.add(ok ? "ok" : "bad");
+    }
+
+    function jsonp(url){
+      return new Promise((resolve, reject) => {
+        const cb = "__sh_cb_" + Math.random().toString(36).slice(2);
+        const s = document.createElement("script");
+        const timeout = setTimeout(() => { cleanup(); reject(new Error("timeout")); }, 12000);
+        function cleanup(){
+          clearTimeout(timeout);
+          try{ delete window[cb]; }catch(e){}
+          s.remove();
+        }
+        window[cb] = (data) => { cleanup(); resolve(data); };
+        s.onerror = () => { cleanup(); reject(new Error("script error")); };
+        s.src = url + (url.includes("?") ? "&" : "?") + "cb=" + cb;
+        document.head.appendChild(s);
+      });
+    }
+
+    async function validatePortal(code){
+      if(!VALIDATE_WEBAPP_URL || VALIDATE_WEBAPP_URL.includes("PASTE_")) throw new Error("VALIDATE_WEBAPP_URL not configured");
+      const url = new URL(VALIDATE_WEBAPP_URL);
+      url.searchParams.set("action", "validatePortal");
+      url.searchParams.set("token", TOKEN);
+      url.searchParams.set("code", code);
+      url.searchParams.set("page", location.href);
+      url.searchParams.set("ua", navigator.userAgent);
+      url.searchParams.set("ts", new Date().toISOString());
+      return await jsonp(url.toString());
+    }
+
+    function unlockUI(){
+      dash.style.display = "block";
+      gateMsg.textContent = "Unlocked. Choose a tool below.";
+      gateText.textContent = "Unlocked.";
+      ledState(true);
+      localStorage.setItem("sh_portal_unlocked", "1");
+    }
+
+    if(localStorage.getItem("sh_portal_unlocked") === "1"){ unlockUI(); }
+
+    gateForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if(honeypot.value && honeypot.value.trim().length) return;
+
+      const code = normalizeCode(codeEl.value);
+      if(!code){ gateMsg.textContent = "Enter your access code."; return; }
+
+      unlockBtn.disabled = true;
+      gateText.textContent = "Checking…";
+      ledState(true);
+
+      try{
+        const res = await validatePortal(code);
+        if(res && res.ok){ unlockUI(); }
+        else{
+          ledState(false);
+          gateText.textContent = "Denied.";
+          gateMsg.textContent = (res && res.message) ? res.message : "Invalid code.";
+        }
+      }catch(err){
+        ledState(false);
+        gateText.textContent = "Error.";
+        gateMsg.textContent = "Couldn’t verify right now. Check your Apps Script deployment + URL.";
+      }finally{
+        unlockBtn.disabled = false;
+      }
+    });
+
+    // Dashboard navigation
+    const panels = { scenes: $("#panel-scenes"), music: $("#panel-music"), drawings: $("#panel-drawings"), videos: $("#panel-videos") };
+    function closeAll(){ Object.values(panels).forEach(p => p.style.display = "none"); }
+    document.querySelectorAll(".tile").forEach(tile => {
+      tile.addEventListener("click", () => {
+        closeAll();
+        const id = tile.dataset.open;
+        const p = panels[id];
+        if(p){ p.style.display = "block"; p.scrollIntoView({behavior:"smooth", block:"start"}); }
+      });
+    });
+    document.querySelectorAll("[data-close]").forEach(btn => btn.addEventListener("click", closeAll));
+
+    // Music: voice recording
+    const recStart = $("#recStart"), recStop = $("#recStop"), recLed = $("#recLed"), recText = $("#recText"), recAudio = $("#recAudio"), recDownload = $("#recDownload");
+    let mediaRecorder, chunks = [], lastBlob = null;
+    function recState(ok, text){
+      recLed.classList.remove("ok","bad");
+      recLed.classList.add(ok ? "ok" : "bad");
+      recText.textContent = text;
+    }
+    recState(true, "Idle.");
+
+    recStart.addEventListener("click", async () => {
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        chunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => { if(e.data && e.data.size) chunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          lastBlob = new Blob(chunks, { type: chunks[0]?.type || "audio/webm" });
+          const url = URL.createObjectURL(lastBlob);
+          recAudio.src = url;
+          recAudio.style.display = "block";
+          recDownload.disabled = false;
+          recState(true, "Recorded.");
+          stream.getTracks().forEach(t => t.stop());
+        };
+        mediaRecorder.start();
+        recStart.disabled = true;
+        recStop.disabled = false;
+        recDownload.disabled = true;
+        recAudio.style.display = "none";
+        recState(true, "Recording…");
+      }catch(err){
+        recState(false, "Mic blocked.");
+        alert("Microphone permission is required to record.");
+      }
+    });
+
+    recStop.addEventListener("click", () => {
+      if(mediaRecorder && mediaRecorder.state !== "inactive"){
+        mediaRecorder.stop();
+        recStart.disabled = false;
+        recStop.disabled = true;
+      }
+    });
+
+    recDownload.addEventListener("click", () => {
+      if(!lastBlob) return;
+      const a = document.createElement("a");
+      const ext = (lastBlob.type.includes("ogg")) ? "ogg" : (lastBlob.type.includes("wav") ? "wav" : "webm");
+      a.href = URL.createObjectURL(lastBlob);
+      a.download = "singinghugo_voice_recording." + ext;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    // Scenes: OCR
+    const imgInput = $("#imgInput"), imgPreview = $("#imgPreview"), noPreview = $("#noPreview");
+    const runOcrBtn = $("#runOcrBtn"), ocrLed = $("#ocrLed"), ocrText = $("#ocrText"), ocrOut = $("#ocrOut");
+    const saveSceneBtn = $("#saveSceneBtn"), downloadSceneBtn = $("#downloadSceneBtn"), saveHint = $("#saveHint");
+    function ocrState(ok, text){
+      ocrLed.classList.remove("ok","bad");
+      ocrLed.classList.add(ok ? "ok" : "bad");
+      ocrText.textContent = text;
+    }
+    ocrState(true, "Idle.");
+    let currentImageFile = null;
+
+    imgInput.addEventListener("change", () => {
+      const f = imgInput.files && imgInput.files[0];
+      currentImageFile = f || null;
+      if(!f){
+        imgPreview.style.display = "none";
+        noPreview.style.display = "block";
+        return;
+      }
+      const url = URL.createObjectURL(f);
+      imgPreview.src = url;
+      imgPreview.style.display = "block";
+      noPreview.style.display = "none";
+    });
+
+    runOcrBtn.addEventListener("click", async () => {
+      if(!currentImageFile){ alert("Choose an image first."); return; }
+      if(!window.Tesseract){ alert("OCR library didn’t load. Check your connection."); return; }
+      ocrState(true, "Running OCR…");
+      runOcrBtn.disabled = true;
+      try{
+        const { data } = await window.Tesseract.recognize(currentImageFile, "eng", {
+          logger: m => { if(m.status === "recognizing text") ocrState(true, "OCR " + Math.round((m.progress||0)*100) + "%"); }
+        });
+        ocrOut.value = (data && data.text) ? data.text.trim() : "";
+        ocrState(true, "Done.");
+      }catch(err){
+        ocrState(false, "OCR failed.");
+        alert("OCR failed. Try a clearer photo (good light, fill the frame).");
+      }finally{
+        runOcrBtn.disabled = false;
+      }
+    });
+
+    function saveScene(){
+      const text = ocrOut.value || "";
+      localStorage.setItem("sh_scene_text", text);
+      saveHint.textContent = "Saved locally at " + new Date().toLocaleString();
+      return text;
+    }
+    saveSceneBtn.addEventListener("click", saveScene);
+    downloadSceneBtn.addEventListener("click", () => {
+      const text = saveScene();
+      const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "singinghugo_scene.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+    const savedScene = localStorage.getItem("sh_scene_text");
+    if(savedScene) ocrOut.value = savedScene;
+
+    // Prompt generation
+    const stylePreset = $("#stylePreset"), makePromptBtn = $("#makePromptBtn"), copyPromptBtn = $("#copyPromptBtn"), promptOut = $("#promptOut");
+    function presetText(key){
+      if(key === "sh_pencil") return "hand-drawn storyboard pencil lines, film scan texture, subtle graphite smudges, warm paper tone, minimal ink accents, cinematic composition, soft grain";
+      if(key === "sh_noir") return "minimal noir neon, fog and glow, bold negative space, restrained palette, cinematic lighting, clean typography-friendly framing, soft grain";
+      return "dreamy glassy atmosphere, ink + watercolor edges, soft halation, cinematic depth, gentle film grain, tactile texture, elegant minimal composition";
+    }
+    makePromptBtn.addEventListener("click", () => {
+      const content = (ocrOut.value || "").trim() || "(your scene text here)";
+      const style = presetText(stylePreset.value);
+      promptOut.value = `SINGING HUGO ARTWORK STYLE.\nSubject / text: ${content}\n\nStyle: ${style}.\nNotes: high quality, cohesive art direction, avoid clutter, readable forms, no extra logos or watermarks.\n`;
+    });
+    copyPromptBtn.addEventListener("click", async () => {
+      const t = promptOut.value.trim(); if(!t) return;
+      try{ await navigator.clipboard.writeText(t); }catch(e){}
+    });
+
+    // Drawings: prompt library
+    const drawText = $("#drawText"), drawRatio = $("#drawRatio"), drawMood = $("#drawMood"), drawMake = $("#drawMake"), drawSave = $("#drawSave"), drawOut = $("#drawOut");
+    const savedList = $("#savedList"), drawExport = $("#drawExport"), drawClear = $("#drawClear");
+    function loadPrompts(){ try{ return JSON.parse(localStorage.getItem("sh_prompts") || "[]"); }catch(e){ return []; } }
+    function savePrompts(arr){ localStorage.setItem("sh_prompts", JSON.stringify(arr)); }
+    function uid(){ return "p_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8); }
+
+    function renderPrompts(){
+      const arr = loadPrompts();
+      savedList.innerHTML = "";
+      if(!arr.length){ savedList.innerHTML = '<div class="muted">No saved prompts yet.</div>'; return; }
+      arr.slice().reverse().forEach((p) => {
+        const card = document.createElement("div");
+        card.style.border = "1px solid rgba(255,255,255,.10)";
+        card.style.borderRadius = "16px";
+        card.style.background = "rgba(8,10,14,.35)";
+        card.style.padding = "12px";
+        card.innerHTML = `<div class="muted" style="margin-bottom:6px">${new Date(p.ts).toLocaleString()} · ${p.ratio} · ${p.mood}</div>
+                          <div style="white-space:pre-wrap; line-height:1.35; font-size:13px">${p.text}</div>
+                          <div class="row" style="margin-top:10px"><button type="button" data-copy="${p.id}">Copy</button></div>`;
+        savedList.appendChild(card);
+      });
+      savedList.querySelectorAll("[data-copy]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-copy");
+          const arr = loadPrompts();
+          const item = arr.find(x => x.id === id);
+          if(!item) return;
+          try{ await navigator.clipboard.writeText(item.text); }catch(e){}
+        });
+      });
+    }
+
+    drawMake.addEventListener("click", () => {
+      const base = (drawText.value || "").trim() || "(describe your drawing idea here)";
+      const ratio = drawRatio.value;
+      const mood = drawMood.value;
+      const style = "Singing Hugo artwork style: tactile ink + watercolor edge, soft halation, cinematic framing, gentle film grain, minimal but expressive forms, cohesive art direction";
+      drawOut.value = `PROMPT:\n${base}\n\nSTYLE:\n${style}\n\nMOOD: ${mood}\nASPECT RATIO: ${ratio}\nAVOID: messy clutter, unreadable text, extra logos, watermarks.\n`;
+    });
+
+    drawSave.addEventListener("click", () => {
+      const text = (drawOut.value || "").trim(); if(!text) return;
+      const arr = loadPrompts();
+      arr.push({ id: uid(), ts: Date.now(), ratio: drawRatio.value, mood: drawMood.value, text });
+      savePrompts(arr);
+      renderPrompts();
+    });
+
+    drawExport.addEventListener("click", () => {
+      const arr = loadPrompts();
+      const blob = new Blob([JSON.stringify(arr, null, 2)], {type:"application/json;charset=utf-8"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "singinghugo_prompts.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    drawClear.addEventListener("click", () => {
+      if(!confirm("Clear all saved prompts on this device?")) return;
+      savePrompts([]);
+      renderPrompts();
+    });
+
+    renderPrompts();
+
+    // Videos: optional pinned embed
+    const videoId = $("#videoId"), setVideo = $("#setVideo"), videoBox = $("#videoBox"), videoFrame = $("#videoFrame");
+    function setPinned(id){
+      const v = (id||"").trim();
+      if(!v){ videoBox.style.display = "none"; videoFrame.src = ""; return; }
+      videoFrame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(v)}?rel=0&modestbranding=1&playsinline=1`;
+      videoBox.style.display = "block";
+      localStorage.setItem("sh_pinned_video", v);
+    }
+    setVideo.addEventListener("click", () => setPinned(videoId.value));
+    const pinned = localStorage.getItem("sh_pinned_video");
+    if(pinned){ videoId.value = pinned; setPinned(pinned); }
+
+    // Background (Three.js + GSAP)
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(!reduced){
+      const canvas = document.getElementById("bg");
+      const THREE = await import("https://unpkg.com/three@0.160.0/build/three.module.js");
+      const { gsap } = await import("https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js");
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, powerPreference:"high-performance" });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+      function makeTex(seed){
+        const c = document.createElement("canvas");
+        c.width = 1024; c.height = 1024;
+        const ctx = c.getContext("2d");
+        let s = seed * 99991;
+        const rnd = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+
+        const col1 = `hsl(${Math.floor(200 + rnd()*150)}, 70%, ${Math.floor(30 + rnd()*18)}%)`;
+        const col2 = `hsl(${Math.floor( 10 + rnd()*260)}, 70%, ${Math.floor(18 + rnd()*20)}%)`;
+        const g = ctx.createLinearGradient(0,0,c.width,c.height);
+        g.addColorStop(0, col1); g.addColorStop(1, col2);
+        ctx.fillStyle = g; ctx.fillRect(0,0,c.width,c.height);
+
+        for(let i=0;i<55;i++){
+          const x=rnd()*c.width, y=rnd()*c.height, r=40+rnd()*160;
+          const gg=ctx.createRadialGradient(x,y,0,x,y,r);
+          gg.addColorStop(0, `hsla(${Math.floor(180+rnd()*220)}, 90%, 65%, ${0.10+rnd()*0.12})`);
+          gg.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+        }
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+        return tex;
+      }
+
+      const slides = [makeTex(1), makeTex(2), makeTex(3), makeTex(4), makeTex(5)];
+      let idx = 0;
+
+      const uniforms = {
+        uTime: { value: 0 },
+        uMouse: { value: new THREE.Vector2(0.5,0.5) },
+        uMouseVel: { value: new THREE.Vector2(0,0) },
+        uTexA: { value: slides[0] },
+        uTexB: { value: slides[1] },
+        uMix: { value: 0.0 },
+        uAspect: { value: window.innerWidth / Math.max(1, window.innerHeight) },
+      };
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader: "varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0);} ",
+        fragmentShader: `
+          precision highp float;
+          varying vec2 vUv;
+          uniform float uTime, uMix, uAspect;
+          uniform vec2 uMouse, uMouseVel;
+          uniform sampler2D uTexA, uTexB;
+
+          float hash(vec2 p){ p=fract(p*vec2(123.34,345.45)); p+=dot(p,p+34.345); return fract(p.x*p.y); }
+          float noise(vec2 p){
+            vec2 i=floor(p), f=fract(p);
+            float a=hash(i), b=hash(i+vec2(1,0)), c=hash(i+vec2(0,1)), d=hash(i+vec2(1,1));
+            vec2 u=f*f*(3.0-2.0*f);
+            return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+          }
+          vec2 coverUv(vec2 uv, float texAspect, float screenAspect){
+            vec2 u=uv-0.5;
+            if(screenAspect>texAspect) u.x*=screenAspect/texAspect;
+            else u.y*=texAspect/screenAspect;
+            return u+0.5;
+          }
+
+          void main(){
+            vec2 uv=vUv;
+            vec2 toM=uv-uMouse;
+            float dist=length(toM);
+            float n=noise(uv*3.0 + uTime*0.08);
+
+            vec2 drift = vec2(sin(uTime*0.18 + uv.y*5.0), cos(uTime*0.16 + uv.x*4.2))*0.01;
+            vec2 warp = toM*(0.09*exp(-dist*3.0)) + drift + uMouseVel*0.02 + (n-0.5)*0.02;
+
+            vec2 cuv = coverUv(uv + warp, 1.0, uAspect);
+            vec4 a = texture2D(uTexA, cuv);
+            vec4 b = texture2D(uTexB, cuv);
+
+            float edge = smoothstep(0.15, 0.85, uMix + (n-0.5)*0.25);
+            vec4 col = mix(a,b,edge);
+
+            col.rgb = pow(col.rgb, vec3(0.92)) * 1.05;
+            float v = smoothstep(0.95, 0.2, dist);
+            col.rgb *= 0.65 + 0.35*v;
+
+            gl_FragColor = col;
+          }
+        `
+      });
+
+      scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), mat));
+
+      const mouse = new THREE.Vector2(0.5,0.5);
+      const prev = new THREE.Vector2(0.5,0.5);
+      const vel = new THREE.Vector2(0,0);
+
+      function onPointerMove(ev){
+        const x = ev.clientX / window.innerWidth;
+        const y = 1.0 - (ev.clientY / window.innerHeight);
+        mouse.set(x,y);
+      }
+      window.addEventListener("pointermove", onPointerMove, {passive:true});
+      window.addEventListener("touchmove", (ev)=>{ if(ev.touches&&ev.touches[0]) onPointerMove(ev.touches[0]); }, {passive:true});
+
+      function nextSlide(){
+        const next = (idx+1) % slides.length;
+        uniforms.uTexA.value = slides[idx];
+        uniforms.uTexB.value = slides[next];
+        uniforms.uMix.value = 0.0;
+        idx = next;
+        gsap.to(uniforms.uMix, { value: 1.0, duration: 1.6, ease: "power2.inOut" });
+      }
+      setInterval(nextSlide, 9000);
+
+      function onResize(){
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+        uniforms.uAspect.value = window.innerWidth / Math.max(1, window.innerHeight);
+      }
+      window.addEventListener("resize", onResize);
+
+      gsap.from(".card", { y: 18, opacity: 0, duration: 0.8, ease: "power2.out" });
+      gsap.from("header .brand", { y: -10, opacity: 0, duration: 0.8, ease: "power2.out", delay: 0.08 });
+      gsap.from("header .pill", { y: -10, opacity: 0, duration: 0.8, ease: "power2.out", delay: 0.14 });
+
+      const clock = new THREE.Clock();
+      function anim(){
+        uniforms.uTime.value = clock.getElapsedTime();
+        uniforms.uMouse.value.lerp(mouse, 0.08);
+        vel.copy(uniforms.uMouse.value).sub(prev);
+        prev.copy(uniforms.uMouse.value);
+        uniforms.uMouseVel.value.lerp(vel, 0.15);
+        renderer.render(scene, camera);
+        requestAnimationFrame(anim);
+      }
+      anim();
+    }
+  </script>
+</body>
+</html>
